@@ -1,0 +1,57 @@
+version: '3'
+services:
+    postgres:
+        image: 'postgres:latest'
+        environment:
+            - POSTGRES_PASSWORD=postgres_password
+    redis:
+        image: 'redis:latest'
+    nginx:
+        depends_on:
+            - api
+            - client
+        restart: always
+        build:
+            dockerfile: Dockerfile.dev
+            context: ./nginx
+        ports:
+            - '3050:80'
+    api:
+        depends_on:
+            - postgres
+        build:
+            dockerfile: Dockerfile.dev
+            context: ./server
+        volumes:
+            - /app/node_modules
+            - ./server:/app
+        environment:
+            #redis is the name of the service we are creating above so we can use that directly
+            - REDIS_HOST=redis
+            - REDIS_PORT=6379
+            - PGUSER=postgres
+            - PGHOST=postgres
+            - PGDATABASE=postgres
+            - PGPASSWORD=postgres_password
+            - PGPORT=5432
+    client:
+        #Recently, a bug was introduced with the latest Create React App 
+        #version that is causing the React app to exit when starting with Docker Compose. 
+        #to resolve it following lines are added
+        stdin_open: true
+        build:
+            dockerfile: Dockerfile.dev
+            context: ./client
+        volumes:
+            - /app/node_modules
+            - ./client:/app
+    worker:
+        build:
+            dockerfile: Dockerfile.dev
+            context: ./worker
+        volumes:
+            - /app/node_modules
+            - ./worker:/app
+        environment:
+            - REDIS_HOST=redis
+            - REDIS_PORT=6379    
